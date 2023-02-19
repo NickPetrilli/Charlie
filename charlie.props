@@ -6,3 +6,4 @@ charlie.client.courier -1:8001
 charlie.debug false
 charlie.shoe charlie.card.Shoe01
 charlie.advisor charlie.client.HumanAdvisor
+charlie.trap charlie.client.CountingTrap
