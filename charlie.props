@@ -7,3 +7,6 @@ charlie.debug false
 charlie.shoe charlie.server.MyShoe01
 charlie.advisor charlie.client.HumanAdvisor
 charlie.trap charlie.client.CountingTrap
+charlie.sidebet.rule charlie.sidebet.rule.SideBetRule
+charlie.sidebet.view charlie.sidebet.view.SideBetView
+charlie.shoe charlie.sidebet.test.Shoe
