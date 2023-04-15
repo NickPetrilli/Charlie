@@ -11,3 +11,4 @@ charlie.sidebet.rule charlie.sidebet.rule.SideBetRule
 charlie.sidebet.view charlie.sidebet.view.SideBetView
 #charlie.shoe charlie.sidebet.test.Shoe
 charlie.bot.huey charlie.server.bot.HueyStay
+charlie.advisor charlie.client.Advisor
