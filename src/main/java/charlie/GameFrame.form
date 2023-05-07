@@ -31,7 +31,9 @@
                       <Component id="soundsCheckBox" min="-2" pref="67" max="-2" attributes="0"/>
                       <EmptySpace max="-2" attributes="0"/>
                       <Component id="adviseCheckBox" min="-2" pref="64" max="-2" attributes="0"/>
-                      <EmptySpace pref="168" max="32767" attributes="0"/>
+                      <EmptySpace max="-2" attributes="0"/>
+                      <Component id="countCheckBox" min="-2" pref="85" max="-2" attributes="0"/>
+                      <EmptySpace pref="77" max="32767" attributes="0"/>
                       <Component id="splitButton" min="-2" max="-2" attributes="0"/>
                       <EmptySpace max="-2" attributes="0"/>
                       <Component id="ddownButton" min="-2" max="-2" attributes="0"/>
@@ -64,6 +66,7 @@
                   <Component id="splitButton" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="adviseCheckBox" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="soundsCheckBox" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="countCheckBox" alignment="3" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
           </Group>
@@ -148,6 +151,12 @@
     <Component class="javax.swing.JCheckBox" name="soundsCheckBox">
       <Properties>
         <Property name="text" type="java.lang.String" value="Sounds"/>
+      </Properties>
+    </Component>
+    <Component class="javax.swing.JCheckBox" name="countCheckBox">
+      <Properties>
+        <Property name="text" type="java.lang.String" value="Count"/>
+        <Property name="enabled" type="boolean" value="false"/>
       </Properties>
     </Component>
   </SubComponents>

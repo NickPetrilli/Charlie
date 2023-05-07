@@ -70,6 +70,7 @@ public class GameFrame extends javax.swing.JFrame {
     protected boolean trucking = true;
     protected boolean dubblable;
     protected IAdvisor advisor;
+    protected int numChips = 1;
     protected Hand dealerHand;
 //    private Properties props;
     protected boolean manuallyControlled = true;
@@ -105,7 +106,7 @@ public class GameFrame extends javax.swing.JFrame {
      */
     protected final void init() {
         // Establish the title
-        this.setTitle("Charlie2");
+        this.setTitle("Charlie2 - $" + Constant.MIN_BET + " minimum bet");
         
         // Get the ATable on to the grame
         table = new ATable(this, this.surface);
@@ -246,6 +247,68 @@ public class GameFrame extends javax.swing.JFrame {
         
         return true;
     }
+    
+    /**
+     * Confirm bet with Hi-Lo counter
+     * @return true if user selects bet advice and is valid (with bankroll), 
+     * false otherwise
+     */
+    protected boolean confirmedBet() {
+        if (!this.isCounting()) {
+            return true;
+        }
+        
+        int betOnTable = table.getBetAmt();
+        int betAdvice = numChips * Constant.MIN_BET;
+        
+        if (this.isCounting() && betOnTable != betAdvice){
+            SoundFactory.play(Effect.BAD_PLAY);
+            
+            Object[] options = {
+                "Bet $" + betAdvice,
+                "Bet $" + betOnTable};
+            String msg = "<html>I suggest...<font color=\"blue\" size=\"4\">" +
+                    "bet $" + betAdvice +
+                    ".</font>";
+            int n = JOptionPane.showOptionDialog(this,
+                    msg,
+                    "Hi-Lo Advice",
+                    JOptionPane.YES_NO_CANCEL_OPTION,
+                    JOptionPane.WARNING_MESSAGE,
+                    null,
+                    options,
+                    options[1]);
+            //If user accepts betAdvice
+            if (n == 0) {
+                if (betAdvice > table.getBankroll()) {
+                    SoundFactory.play(Effect.NO_BET);
+                    JOptionPane.showMessageDialog(this,
+                            "Insufficient bankroll for $" + betAdvice + " bet. "
+                             + "Now using the bet on the table.",
+                            "Status",
+                            JOptionPane.ERROR_MESSAGE);
+                    return false; 
+                }
+                
+                this.table.confirmCounterBet(numChips);
+
+            }
+            else {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    /**
+     * Updates the member variable numChips
+     * Gets called in ATable every time the card counter updates
+     * Meaning there could be a new bet calculated
+     * @param numChips 
+     */
+    public void updateCounterBetAmount(int numChips) {
+        this.numChips = numChips;
+    }
 
     /**
      * Connects to server
@@ -383,6 +446,7 @@ public class GameFrame extends javax.swing.JFrame {
         splitButton = new javax.swing.JButton();
         adviseCheckBox = new javax.swing.JCheckBox();
         soundsCheckBox = new javax.swing.JCheckBox();
+        countCheckBox = new javax.swing.JCheckBox();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -451,6 +515,9 @@ public class GameFrame extends javax.swing.JFrame {
 
         soundsCheckBox.setText("Sounds");
 
+        countCheckBox.setText("Count");
+        countCheckBox.setEnabled(false);
+
         org.jdesktop.layout.GroupLayout layout = new org.jdesktop.layout.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -463,7 +530,9 @@ public class GameFrame extends javax.swing.JFrame {
                         .add(soundsCheckBox, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, 67, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
                         .add(adviseCheckBox, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, 64, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED, 168, Short.MAX_VALUE)
+                        .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
+                        .add(countCheckBox, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, 85, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED, 77, Short.MAX_VALUE)
                         .add(splitButton)
                         .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
                         .add(ddownButton)
@@ -491,7 +560,8 @@ public class GameFrame extends javax.swing.JFrame {
                     .add(ddownButton)
                     .add(splitButton)
                     .add(adviseCheckBox)
-                    .add(soundsCheckBox))
+                    .add(soundsCheckBox)
+                    .add(countCheckBox))
                 .addContainerGap())
         );
 
@@ -575,6 +645,21 @@ public class GameFrame extends javax.swing.JFrame {
      * @param evt Button press event.
      */
     private void dealButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_dealButtonActionPerformed
+
+        /*
+        The delay is calculated based on the number of chips in the bet advice 
+        that are to be placed. But if the user doesn't take the advice then there
+        shouldn't be a delay
+        */
+        int delay;
+        if (!this.confirmedBet()) {
+            delay = 0;
+        }
+        else {
+            delay = table.getDelay();
+        }
+
+        
         // Clear hands
         hids.clear();
         
@@ -591,19 +676,32 @@ public class GameFrame extends javax.swing.JFrame {
         new Thread(new Runnable() {
             @Override
             public void run() {        
-                // Clear the table and shuffle the cards.
-                frame.table.clear();
-                
+                try {
+                    //Wait while the new bet chips are being placed
+                    Thread.sleep(delay);
+                    // Clear the table and shuffle the cards.
+                    frame.table.clear();
+                } catch(InterruptedException ex) {
+                    
+                }
                 // Get new bet
                 Integer amt = table.getBetAmt();
 
                 if (amt <= 0) {
                     SoundFactory.play(Effect.NO_BET);
                     JOptionPane.showMessageDialog(frame,
-                            "Minimum bet is $5.",
+                            "Minimum bet is $" + Constant.MIN_BET + ".",
                             "Status",
                             JOptionPane.ERROR_MESSAGE);
                     return;
+                }
+                else if (amt > table.getBankroll()) {
+                    SoundFactory.play(Effect.NO_BET);
+                    JOptionPane.showMessageDialog(frame,
+                            "Insufficient bankroll for $" + amt + " bet.",
+                            "Status",
+                            JOptionPane.ERROR_MESSAGE);
+                    return; 
                 }
                 
                 // Disable starting new game
@@ -817,6 +915,21 @@ public class GameFrame extends javax.swing.JFrame {
     }
     
     /**
+     * Gets the state of the countCheckBox
+     * @return true if countCheckBox is selected, false otherwise
+     */
+    public boolean isCounting() {
+        return countCheckBox.isSelected();
+    }
+    
+    /**
+     * Enables the countCheckBox without selecting it
+     */
+    public void enableCounting() {
+        countCheckBox.setEnabled(true);
+    }
+    
+    /**
      * Main starting point of app.
      * @param args the command line arguments
      */
@@ -849,6 +962,7 @@ public class GameFrame extends javax.swing.JFrame {
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton accessButton;
     private javax.swing.JCheckBox adviseCheckBox;
+    private javax.swing.JCheckBox countCheckBox;
     private javax.swing.JButton ddownButton;
     private javax.swing.JButton dealButton;
     private javax.swing.JButton hitButton;

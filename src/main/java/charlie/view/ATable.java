@@ -38,6 +38,7 @@ import java.awt.Toolkit;
 import javax.swing.JPanel;
 import charlie.util.Point;
 import charlie.dealer.Seat;
+import charlie.plugin.ICardCounter;
 import charlie.plugin.ISideBetView;
 import charlie.util.Constant;
 import java.awt.Image;
@@ -102,6 +103,9 @@ public final class ATable extends JPanel implements Runnable, IUi, MouseListener
     private Card holeCard;
     private int[] holeValues;
     protected Courier courier;
+    protected ICardCounter cardCounter;
+    protected int delay; //in milliseconds
+    protected final int CLEAR_BET_DELAY = 1000;
 
     /**
      * Constructor
@@ -252,6 +256,10 @@ public final class ATable extends JPanel implements Runnable, IUi, MouseListener
         if(logan != null)
             logan.render(g2d);
         
+        if(cardCounter != null && frame.isCounting()) {
+            cardCounter.render(g2d);
+        }
+        
         // Java tool related stuff
         Toolkit.getDefaultToolkit().sync();
 
@@ -370,6 +378,12 @@ public final class ATable extends JPanel implements Runnable, IUi, MouseListener
             if(logan != null)
                 logan.deal(hid, holeCard, holeValues);
             
+            //Do the same for card counter
+            if (cardCounter != null) {
+                cardCounter.update(holeCard);
+                frame.updateCounterBetAmount(cardCounter.getBetAmt());
+            }
+            
             // Disable the "turn" signal
             // Note: "turn" will be null on dealer blackjack in which case
             // nobody has played.
@@ -415,7 +429,7 @@ public final class ATable extends JPanel implements Runnable, IUi, MouseListener
                 }).start();
 
             }
-            
+               
             SoundFactory.play(Effect.TURN);
         }
     }
@@ -465,6 +479,15 @@ public final class ATable extends JPanel implements Runnable, IUi, MouseListener
                 }
             }).start();
         }
+        
+        /* As the card counter updates and calculates a new bet amount
+        also update the bet amount in GameFrame which is used in the popup to
+        check if its the correct bet to make */
+        if (this.cardCounter != null && !(card instanceof HoleCard)) {
+            this.cardCounter.update(card);
+            frame.updateCounterBetAmount(cardCounter.getBetAmt());
+        }
+        
     }
 
     /**
@@ -666,6 +689,10 @@ public final class ATable extends JPanel implements Runnable, IUi, MouseListener
         
         if(logan != null)
             logan.startGame(hids, shoeSize);
+        
+        if (cardCounter != null) {
+            cardCounter.startGame(shoeSize);
+        }
     }
 
     /**
@@ -730,6 +757,18 @@ public final class ATable extends JPanel implements Runnable, IUi, MouseListener
             }).start();
 
         }
+        
+        if (cardCounter != null) {
+            cardCounter.endGame(shoeSize);
+            /*Since resetting the count(s) is being done at the start of the game
+            and not the end, that means the bet chips num will still be from the 
+            last shoe, but it is about to be reshuffled, so tell the frame for 
+            the popup advice, even though the counts on the screen will say 
+            otherwise (because the cards haven't been shuffled yet) */
+            if (shufflePending) {
+                frame.updateCounterBetAmount(1);
+            }
+        }
     }
 
     /**
@@ -744,6 +783,10 @@ public final class ATable extends JPanel implements Runnable, IUi, MouseListener
         
         if (logan != null)
             logan.shuffling();
+        
+        if (cardCounter != null) {
+            cardCounter.shufflePending();
+        }
     }
 
     /**
@@ -857,6 +900,7 @@ public final class ATable extends JPanel implements Runnable, IUi, MouseListener
         
         loadSideBetSystem();
         loadAutoPilot();
+        loadCardCounter();
     } 
     
     /**
@@ -901,9 +945,129 @@ public final class ATable extends JPanel implements Runnable, IUi, MouseListener
                         
             LOG.info("successfully loaded autopilot");
         } catch (ClassNotFoundException | InstantiationException | IllegalAccessException ex) {
-            LOG.error("failed to load autopilog: "+ex);
+            LOG.error("failed to load autopilot: "+ex);
         }
-    } 
+    }
+    
+    /**
+     * Loads the card counter plugin based on the property file setting.
+     */
+    protected void loadCardCounter() {
+            try {
+            String className = props.getProperty(Constant.PLUGIN_CARD_COUNTER);
+            
+            if (className == null)
+                return;
+            
+            Class<?> clazz;
+            
+            clazz = Class.forName(className);
+            
+            LOG.info("card counter plugin detected: "+className);
+            
+            this.cardCounter = (ICardCounter) clazz.newInstance();
+            
+            frame.enableCounting();
+            
+            LOG.info("successfully loaded card counter");
+        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException ex) {
+            LOG.error("failed to load card counter: "+ex);
+        }
+    }
+    /**
+     * Handles user choosing the bet amount from HiLoCounter
+     * First clears the bet on table, then places the new bet
+     * @param numChips to be placed on table in new bet
+     */
+    public void confirmCounterBet(int numChips) {
+        int betAmount = numChips * Constant.MIN_BET;
+        /*
+        Ex: Number is 230
+            230 % 100 = 30     230 / 100 = 2
+            30  % 25  =  5     30  / 25  = 1
+            5   % 5   =  0       5 /  5  = 1
+        */
+        int mod100 = betAmount % 100;
+        int mod25 = mod100 % 25;
+        int mod5 = mod25 % 5;
+        int newChips = (betAmount / 100) + (mod100 / 25) + (mod5 / 5);
+        /* For every chip, 1000ms (1 second) delay + the clear bet delay of 1000ms
+           This is very long, but it's to be able to hear the sound of each chip
+           being placed */
+        this.delay = newChips * 1000 + CLEAR_BET_DELAY;
+        
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    monies.get(Seat.YOU).clearBet();
+                    Thread.sleep(1000);
+
+                    int betAmount = numChips * Constant.MIN_BET;
+                    while (betAmount != 0) {
+                        if (betAmount >= 100) {
+                            monies.get(Seat.YOU).click(232, 373); 
+                            betAmount = betAmount - 100;
+                        }
+                        else if (betAmount >= 25) {
+                            monies.get(Seat.YOU).click(276, 373);
+                            betAmount = betAmount - 25;
+                        }
+                        else if (betAmount >= 5) {
+                            monies.get(Seat.YOU).click(324, 373);
+                            betAmount = betAmount - 5;
+                        }
+                        
+                        monies.get(Seat.YOU).unclick();
+                        Thread.sleep(1000);
+                    }
+                    
+                    //This implementation strictly uses numChips, so if the bet
+                    //chips is 10, it will do 10 chips of the min bet rather than
+                    //optimizing and taking the largest chip first for less chips
+                    /*
+                    for (int i = 0; i < numChips; i++) {
+                        //Don't want to use switch statement because the break statments
+                        //will break out of the loop after one iteration
+                        if (Constant.MIN_BET == 5) {
+                            monies.get(Seat.YOU).click(324, 373);
+                        }
+                        else if (Constant.MIN_BET == 25) {
+                            monies.get(Seat.YOU).click(276, 373);
+                        }
+                        else if (Constant.MIN_BET == 100) {
+                           monies.get(Seat.YOU).click(232, 373); 
+                        }
+                    
+                        monies.get(Seat.YOU).unclick();
+                        Thread.sleep(1000);
+                    }
+                    */
+                } catch (InterruptedException ex) {
+
+                }
+            }
+        }).start();    
+    }
+    
+    /**
+     * Returns the delay based on how many chips are being placed in new bet
+     * Used in the GameFrame to wait certain amount of time while the new bet
+     * is being updated on the table before dealing
+     * @return delay in ms
+     */
+    public int getDelay() {
+        return delay;
+    }
+    
+    /**
+     * Returns the player bankroll
+     * Used in the GameFrame to check if bet can be made
+     * @return player bankroll
+     */
+    public double getBankroll() {
+        return monies.get(Seat.YOU).getBankroll();
+    }
     
     /**
      * Do shuffle, if needed.

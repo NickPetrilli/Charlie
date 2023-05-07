@@ -10,8 +10,10 @@ charlie.trap charlie.client.CountingTrap
 charlie.sidebet.rule charlie.sidebet.rule.SideBetRule
 charlie.sidebet.view charlie.sidebet.view.SideBetView
 #charlie.shoe charlie.sidebet.test.Shoe
-charlie.bot.huey charlie.server.bot.HueyStay
+#charlie.bot.huey charlie.server.bot.HueyStay
 charlie.advisor charlie.client.Advisor
-charlie.bot.huey charlie.server.bot.Huey
-charlie.bot.dewey charlie.server.bot.Dewey
-charlie.shoe charlie.bot.test.MyShoe
+#charlie.bot.huey charlie.server.bot.Huey
+#charlie.bot.dewey charlie.server.bot.Dewey
+#charlie.shoe charlie.bot.test.MyShoe
+charlie.shoe charlie.card.Shoe01
+charlie.counter charlie.client.HiLoCounter

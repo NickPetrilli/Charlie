@@ -35,7 +35,7 @@ public class Constant {
     public final static Double PLAYER_BANKROLL = 1000.0;
     public final static Double BOT_BANKROLL = 1000.0;
     public final static Double BOT_MIN_BET = 5.0;
-    public final static Integer MIN_BET = 5;
+    public final static Integer MIN_BET = 25;
     public final static int SHOE_X = 500;
     public final static int SHOE_Y = 0;
     public final static String PLUGIN_SIDE_BET_RULE = "charlie.sidebet.rule";     
@@ -44,4 +44,5 @@ public class Constant {
     public final static String PLUGIN_TRAP = "charlie.trap";
     public final static String PLUGIN_SHOE = "charlie.shoe";
     public final static String PLUGIN_ADVISOR = "charlie.advisor";
+    public final static String PLUGIN_CARD_COUNTER = "charlie.counter";
 }
